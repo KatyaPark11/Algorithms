@@ -6,8 +6,9 @@ namespace Algorithms
     {
         public static void Main()  
         {
-            int[] array = { 63, 5, 1, 31, 82, 72, 33, 93, 24, 95 };
-            ExternalMultiDirectMergeSort.Sort("input.txt", 25);
+            //int[] array = { 63, 5, 1, 31, 82, 72, 33, 93, 24, 95 };
+            string[] array = { "my", "name", "is", "pypa", "and", "he", "is", "pupa", "1", "51" };
+            ExternalMultiNaturalMergeSort.Sort("input.txt", 2);
         }
     }
 
