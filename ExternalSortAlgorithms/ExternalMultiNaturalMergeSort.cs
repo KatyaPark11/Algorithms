@@ -1,4 +1,8 @@
-﻿namespace Algorithms.ExternalSortAlgorithms
+﻿using System.Diagnostics.Metrics;
+using System.Reflection.PortableExecutable;
+using System.Xml.Linq;
+
+namespace Algorithms.ExternalSortAlgorithms
 {
     /// <summary>
     /// Класс, реализующий внешнюю сортировку многопутевым естественным слиянием.
@@ -9,6 +13,7 @@
         /// Метод, реализующий внешнюю сортировку многопутевым естественным слиянием.
         /// </summary>
         /// <param name="inputPath">Путь к файлу с массивом для сортировки.</param>
+        /// <param name="threadsNum">Число потоков.</param>
         public static void Sort(string inputPath, int threadsNum)
         {
             // Проверяем, допустимо ли введённое количество путей.
@@ -32,11 +37,7 @@
                 // Если осталась одна серия, прекращаем сортировку.
                 if (series.Count == 1) break;
                 // Сливаем временные файлы в файл с будущим отсортированным массивом.
-                MergePairs(series, threadsNum, out StreamReader[] readers);
-                // Пробегаемся по считывателям из временных файлов.
-                foreach (var reader in readers)
-                    // Закрываем поток.
-                    reader.Dispose();
+                MergeFiles(series, threadsNum);
             }
 
             // Пробегаемся от нуля до числа путей.
@@ -64,22 +65,22 @@
             // Устанавливаем ноль в качестве счётчика для отслеживания перехода к следующему файлу.
             int counter = 0;
             // Устанавливаем первую строку из файла с будущим отсортированным массивом в качестве текущего взятого числа.
-            string? currentNum = fileA.ReadLine();
+            string? curNum = fileA.ReadLine();
             // Устанавливаем вторую строку из файла с будущим отсортированным массивом в качестве следующего взятого числа.
             string? nextNum = fileA.ReadLine();
 
             // Пока строки в файле с будущим отсортированным массивом не закончились, продолжаем разделение на файла.
-            while (currentNum != null)
+            while (curNum != null)
             {
                 // Записываем число в текущий, соответствующий флагу, файл.
-                writers[flag].WriteLine(currentNum);
+                writers[flag].WriteLine(curNum);
                 // Инкрементируем счётчик.
                 counter++;
                 // Проверяем наличие следующего числа.
                 if (nextNum != null)
                 {
                     // Сравниваем текущий элемент и следующий элемент.
-                    if (int.Parse(currentNum) > int.Parse(nextNum))
+                    if (int.Parse(curNum) > int.Parse(nextNum))
                     {
                         // Если текущий элемент нестрого больше следующего:
                         // Добавляем в серии число элементов в текущей серии.
@@ -93,7 +94,7 @@
 
                 // Переходим к следующему числу:
                 // Присваиваем текущему значению следующее значение.
-                currentNum = nextNum;
+                curNum = nextNum;
                 // Считываем следующее число.
                 nextNum = fileA.ReadLine();
             }
@@ -108,15 +109,15 @@
         }
 
         /// <summary>
-        /// Метод, реализующий слияние файлов B и C в файл с будущим отсортированным массивом.
+        /// Метод, реализующий слияние временных файлов в файл с будущим отсортированным массивом.
         /// </summary>
         /// <param name="series">Список серий (отсортированных подмассивов).</param>
-        private static void MergePairs(List<int> series, int threadsNum, out StreamReader[] readers)
+        private static void MergeFiles(List<int> series, int threadsNum)
         {
             // Устанавливаем записыватель в файл с будущим отсортированным массивом.
             using StreamWriter fileA = new("fileA.txt");
             // Устанавливаем заданное число ссылок в качестве считывателей из временных файлов.
-            readers = new StreamReader[threadsNum];
+            StreamReader[] readers = new StreamReader[threadsNum];
             // Пробегаемся от нуля до числа путей.
             for (int i = 0; i < threadsNum; i++)
                 // Устанавливаем путь к файлу для текущего считывателя.
@@ -139,71 +140,58 @@
             // Пока строки во временных файлах не закончились, продолжаем сортировку.
             while (elements.Any(e => e != null))
             {
-                // Устанавливаем истинное значение в качестве флага достижения всеми счётчиками числа элементов соответствующих серий.
-                bool allCountersMatch = true;
-                // Пробегаемся по массиву счётчиков.
-                for (int i = 0; i < counters.Length; i++)
-                {
-                    // Сравниваем соответствующий счётчик и число элементов серии.
-                    if (counters[i] != series[indices[i]])
-                    {
-                        // Если счётчик не равен числу элементов серии:
-                        // Устанавливаем ложное значение у флага.
-                        allCountersMatch = false;
-                        // Прерываем обход счётчиков.
-                        break;
-                    }
-                }
-
-                // Проверяем значение флага.
-                if (allCountersMatch)
-                {
-                    // Если флаг имеет истинное значение:
-                    // Пробегаемся по массиву счётчиков.
-                    for (int i = 0; i < counters.Length; i++)
-                        // Обнуляем счётчик соответствующего временного файла.
-                        counters[i] = 0;
-                    for (int i = 0; i < indices.Length; i++)
-                        // Инкрементируем индекс серии соответствующего временного файла.
-                        indices[i] += threadsNum;
-                    // Переходим к следующей итерации.
-                    continue;
-                }
-
                 // Если флаг имеет ложное значение:
                 // Устанавливаем заданное число ссылок в качестве копии элементов из временных файлов.
-                string?[] termElements = new string?[elements.Length];
+                string?[] tempElements = new string?[elements.Length];
                 // Копируем массив элементов.
-                Array.Copy(elements, termElements, elements.Length);
+                Array.Copy(elements, tempElements, elements.Length);
                 // Пробегаемся от нуля до числа элементов.
-                for (int i = 0; i < termElements.Length; i++)
+                for (int i = 0; i < tempElements.Length; i++)
                     // Проверяем, является ли серия последней для временного файла и достиг ли счётчик для этого файла числа элементов текущей серии.
                     if (indices[i] >= series.Count || counters[i] == series[indices[i]])
                         // Если счётчик для текущего файла достиг числа итераций, не учитываем элемент текущего файла.
-                        termElements[i] = null;
-
+                        tempElements[i] = null;
                 // Устанавливаем минимальный индекс среди элементов.
-                int minIndex = GetMinIndex(termElements);
-                // Записываем текущее число в файл с будущим отсортированным массивом.
-                WriteNextElem(ref elements[minIndex], ref counters[minIndex], fileA, readers[minIndex]);
-            }
-        }
+                int minIndex = GetMinIndex(tempElements);
+                // Записываем число из временного файла в файл с будущим отсортированным массивом.
+                fileA.WriteLine(elements[minIndex]);
+                // Считываем следующую строку из временного файла.
+                elements[minIndex] = readers[minIndex].ReadLine();
+                // Инкрементируем счётчик для временного файла.
+                counters[minIndex]++;
 
-        /// <summary>
-        /// Метод, реализующий запись элемента в файл и считывание следующего элемента.
-        /// </summary>
-        /// <param name="element">Элемент для записи.</param>
-        /// <param name="counter">Счётчик для файла для считывания.</param>
-        /// <param name="writer">Записыватель в файл с будущим отсортированным массивом.</param>
-        /// <param name="reader">Считыватель из временного файла.</param>
-        private static void WriteNextElem(ref string? element, ref int counter, StreamWriter writer, StreamReader reader)
-        {
-            // Записываем число из файла для считывания в файл с будущим отсортированным массивом.
-            writer.WriteLine(element);
-            // Считываем следующую строку из файла для считывания.
-            element = reader.ReadLine();
-            // Инкрементируем счётчик для файла для считывания.
-            counter++;
+                // Устанавливаем ложное значение в качестве флага перехода к следующей итерации.
+                bool isNextIter = false;
+                // Пробегаемся по массиву счётчиков.
+                for (int i = 0; i < counters.Length; i++)
+                {
+                    // Проверяем, дошёл ли счётчик до конца серии текущего файла.
+                    if (counters[i] != series[indices[i]])
+                    {
+                        // Если счётчик не дошёл до конца серии текущего файла:
+                        // Устанавливаем истинное значение для флага.
+                        isNextIter = true;
+                        // Прерываем обход массива счётчиков.
+                        break;
+                    }
+                }
+                // Если флаг имеет истинное значение, переходим к следующей итерации.
+                if (isNextIter) continue;
+                    
+                // Если флаг имеет ложное значение:
+                // Пробегаемся по массиву счётчиков.
+                for (int i = 0; i < counters.Length; i++)
+                    // Обнуляем счётчик соответствующего временного файла.
+                    counters[i] = 0;
+                for (int i = 0; i < indices.Length; i++)
+                    // Инкрементируем индекс серии соответствующего временного файла.
+                    indices[i] += threadsNum;
+            }
+
+            // Пробегаемся по считывателям из временных файлов.
+            foreach (var reader in readers)
+                // Закрываем поток.
+                reader.Dispose();
         }
 
         /// <summary>

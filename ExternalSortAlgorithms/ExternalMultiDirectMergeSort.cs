@@ -9,6 +9,7 @@
         /// Метод, реализующий внешнюю сортировку многопутевым прямым слиянием.
         /// </summary>
         /// <param name="inputPath">Путь к файлу с массивом для сортировки.</param>
+        /// <param name="threadsNum">Число потоков.</param>
         public static void Sort(string inputPath, int threadsNum)
         {
             // Проверяем, допустимо ли введённое количество путей.
@@ -23,17 +24,17 @@
             File.Copy(inputPath, "fileA.txt", true);
             // Устанавливаем единицу в качестве числа сегментов.
             int segments = 1;
-            // Устанавливаем единицу в качестве числа итераций (шагов).
-            int iterations = 1;
+            // Устанавливаем единицу в качестве шага.
+            int step = 1;
             // Пока после разделения на файлы не останется один сегмент, выполняем сортировку.
             while (true)
             {
-                // Разделяем файл с будущим отсортированным массивом в соответствии с заданным числом итераций.
-                SplitToFiles(ref segments, iterations, threadsNum);
+                // Разделяем файл с будущим отсортированным массивом в соответствии с заданным шагом.
+                SplitToFiles(ref segments, step, threadsNum);
                 // Если остался один сегмент, прекращаем сортировку.
                 if (segments == 1) break;
                 // Сливаем временные файлы в файл с будущим отсортированным массивом.
-                MergePairs(ref iterations, threadsNum);
+                MergeFiles(ref step, threadsNum);
             }
 
             // Пробегаемся от нуля до числа путей.
@@ -43,11 +44,12 @@
         }
 
         /// <summary>
-        /// Метод, реализующий разделение файла с будущим отсортированным массивом в соответствии с заданным числом итераций.
+        /// Метод, реализующий разделение файла с будущим отсортированным массивом в соответствии с заданным шагом.
         /// </summary>
         /// <param name="segments">Число сегментов.</param>
-        /// <param name="iterations">Число итераций (шагов).</param>
-        private static void SplitToFiles(ref int segments, int iterations, int threadsNum)
+        /// <param name="step">Шаг.</param>
+        /// <param name="threadsNum">Число потоков.</param>
+        private static void SplitToFiles(ref int segments, int step, int threadsNum)
         {
             // Устанавливаем единицу в качестве числа сегментов.
             segments = 1;
@@ -64,15 +66,15 @@
             // Устанавливаем ноль в качестве счётчика для отслеживания перехода к следующему файлу.
             int counter = 0;
             // Объявляем текущее взятое число.
-            string? currentNum;
+            string? curNum;
 
             // Пока строки в файле с будущим отсортированным массивом не закончились, продолжаем разделение на файлы.
-            while ((currentNum = fileA.ReadLine()) != null)
+            while ((curNum = fileA.ReadLine()) != null)
             {
-                // Сравниваем счётчик с числом итераций.
-                if (counter == iterations)
+                // Проверяем, дошёл ли счётчик до конца шага.
+                if (counter == step)
                 {
-                    // Если счётчик равен числу итераций:
+                    // Если счётчик дошёл до конца:
                     // Обнуляем счётчик.
                     counter = 0;
                     // Переходим к следующему файлу.
@@ -82,7 +84,7 @@
                 }
 
                 // Записываем число в текущий, соответствующий флагу, файл.
-                writers[flag].WriteLine(currentNum);
+                writers[flag].WriteLine(curNum);
                 // Инкрементируем счётчик.
                 counter++;
             }
@@ -94,10 +96,11 @@
         }
 
         /// <summary>
-        /// Метод, реализующий слияние файлов B и C в файл с будущим отсортированным массивом.
+        /// Метод, реализующий слияние временных файлов в файл с будущим отсортированным массивом.
         /// </summary>
-        /// <param name="iterations"></param>
-        private static void MergePairs(ref int iterations, int threadsNum)
+        /// <param name="step">Шаг.</param>
+        /// <param name="threadsNum">Число потоков.</param>
+        private static void MergeFiles(ref int step, int threadsNum)
         {
             // Устанавливаем записыватель в файл с будущим отсортированным массивом.
             using StreamWriter fileA = new("fileA.txt");
@@ -120,36 +123,37 @@
             while (elements.Any(e => e != null))
             {
                 // Устанавливаем заданное число ссылок в качестве копии элементов из временных файлов.
-                string?[] termElements = new string?[elements.Length];
+                string?[] tempElements = new string?[elements.Length];
                 // Копируем массив элементов.
-                Array.Copy(elements, termElements, elements.Length);
+                Array.Copy(elements, tempElements, elements.Length);
                 // Пробегаемся от нуля до числа элементов.
-                for (int i = 0; i < termElements.Length; i++)
-                    // Проверяем, достиг ли счётчик для текущего файла числа итераций.
-                    if (counters[i] == iterations)
-                        // Если счётчик для текущего файла достиг числа итераций, не учитываем элемент текущего файла.
-                        termElements[i] = null;
+                for (int i = 0; i < tempElements.Length; i++)
+                    // Проверяем, дошёл ли счётчик до конца.
+                    if (counters[i] == step)
+                        // Если счётчик дошёл до конца шага, не учитываем элемент текущего файла.
+                        tempElements[i] = null;
                 // Устанавливаем минимальный индекс среди копии элементов.
-                int minIndex = GetMinIndex(termElements);
+                int minIndex = GetMinIndex(tempElements);
                 // Записываем текущее число в файл с будущим отсортированным массивом.
                 fileA.WriteLine(elements[minIndex]);
                 // Считываем следующую строку из текущего файла.
                 elements[minIndex] = readers[minIndex].ReadLine();
                 // Инкрементируем счётчик для текущего файла.
                 counters[minIndex]++;
-                // Фиксируем значение числа итераций.
-                int iterNum = iterations;
-                // Если счётчики не достигли числа итераций хотя бы для одного файла, переходим к следующей итерации.
-                if (counters.Any(c => c != iterNum)) continue;
-                // Если счётчики достигли числа итераций для всех временных файлов:
+
+                // Фиксируем значение шага.
+                int fixedStep = step;
+                // Если счётчики не дошли до конца шага хотя бы для одного файла, то переходим к следующей итерации.
+                if (counters.Any(c => c != fixedStep)) continue;
+                // Если счётчики дошли до конца для всех временных файлов:
                 // Пробегаемся от нуля до числа счётчиков.
                 for (int i = 0; i < counters.Length; i++)
                     // Обнуляем текущий счётчик.
                     counters[i] = 0;
             }
 
-            // Увеличиваем число итераций в n раз, где n - число считывателей.
-            iterations *= readers.Length;
+            // Увеличиваем шаг в n раз, где n - число считывателей.
+            step *= readers.Length;
 
             // Пробегаемся по считывателям из временных файлов.
             foreach (var reader in readers)
