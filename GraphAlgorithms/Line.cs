@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Algorithms.GraphAlgorithms
+﻿namespace Algorithms.GraphAlgorithms
 {
     /// <summary>
     /// Класс, реализующий линию (ребро) графа.
@@ -28,6 +22,10 @@ namespace Algorithms.GraphAlgorithms
             Weight = weight;
             // Устанавливаем указанные точки в качестве начальных и конечных вершин ребра.
             Points = (startPoint, endPoint);
+            // Добавляем линию (ребро) в список связанных с начальной вершиной линий.
+            startPoint.LinkedLines.Add(this);
+            // Добавляем линию (ребро) в список связанных с конечной вершиной линий.
+            endPoint.LinkedLines.Add(this);
         }
     }
 }

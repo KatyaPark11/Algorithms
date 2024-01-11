@@ -11,11 +11,5 @@
         public bool IsVisited = false;
         // Список связанных с точкой (вершиной) линий.
         public List<Line> LinkedLines = [];
-
-        /// <summary>
-        /// Конструктор класса.
-        /// </summary>
-        /// <param name="name">Имя точки (вершины).</param>
-        public Point (int name) => Name = name;
     }
 }

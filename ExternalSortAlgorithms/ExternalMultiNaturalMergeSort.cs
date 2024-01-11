@@ -76,29 +76,24 @@ namespace Algorithms.ExternalSortAlgorithms
                 writers[flag].WriteLine(curNum);
                 // Инкрементируем счётчик.
                 counter++;
-                // Проверяем наличие следующего числа.
-                if (nextNum != null)
+                // Проверяем наличие следующего числа и сравниваем текущий элемент и следующий элемент.
+                if (nextNum != null && int.Parse(curNum) > int.Parse(nextNum))
                 {
-                    // Сравниваем текущий элемент и следующий элемент.
-                    if (int.Parse(curNum) > int.Parse(nextNum))
-                    {
-                        // Если текущий элемент нестрого больше следующего:
-                        // Добавляем в серии число элементов в текущей серии.
-                        series.Add(counter);
-                        // Обнуляем счётчик.
-                        counter = 0;
-                        // Переходим к следующему файлу.
-                        flag = (flag + 1) % threadsNum;                    
-                    }
+                    // Если следующее число есть и текущий элемент нестрого больше следующего:
+                    // Добавляем в серии число элементов в текущей серии.
+                    series.Add(counter);
+                    // Обнуляем счётчик.
+                    counter = 0;
+                    // Переходим к следующему файлу.
+                    flag = (flag + 1) % threadsNum;
                 }
 
-                // Переходим к следующему числу:
+                // Если не выполняются оба условия:
                 // Присваиваем текущему значению следующее значение.
                 curNum = nextNum;
                 // Считываем следующее число.
                 nextNum = fileA.ReadLine();
             }
-
             // Добавляем в серии число элементов в текущей серии, увеличенное на единицу.
             series.Add(counter);
 
@@ -118,24 +113,24 @@ namespace Algorithms.ExternalSortAlgorithms
             using StreamWriter fileA = new("fileA.txt");
             // Устанавливаем заданное число ссылок в качестве считывателей из временных файлов.
             StreamReader[] readers = new StreamReader[threadsNum];
-            // Пробегаемся от нуля до числа путей.
+            // Пробегаемся от нуля до числа потоков.
             for (int i = 0; i < threadsNum; i++)
                 // Устанавливаем путь к файлу для текущего считывателя.
                 readers[i] = new($"file{(char)('B' + i)}.txt");
             // Устанавливаем нули (по умолчанию) в качестве индексов серий соответствующих считывателей.
-            int[] indices = new int[readers.Length];
-            // Пробегаемся по массиву индексов.
-            for (int i = 0; i < indices.Length; i++)
+            int[] indices = new int[threadsNum];
+            // Пробегаемся от нуля до числа потоков.
+            for (int i = 0; i < threadsNum; i++)
                 // Устанавливаем соответствующий индекс серии.
                 indices[i] = i;
             // Устанавливаем заданное число ссылок в качестве элементов из временных файлов.
-            string?[] elements = new string?[readers.Length];
-            // Пробегаемся по массиву считывателей.
-            for (int i = 0; i < readers.Length; i++)
+            string?[] elements = new string?[threadsNum];
+            // Пробегаемся от нуля до числа потоков.
+            for (int i = 0; i < threadsNum; i++)
                 // Считываем первую строку из каждого временного файла.
                 elements[i] = readers[i].ReadLine();
             // Устанавливаем нули (по умолчанию) в качестве счётчиков для файлов для отслеживания перехода к следующему файлу.
-            int[] counters = new int[readers.Length];
+            int[] counters = new int[threadsNum];
 
             // Пока строки во временных файлах не закончились, продолжаем сортировку.
             while (elements.Any(e => e != null))
@@ -145,8 +140,8 @@ namespace Algorithms.ExternalSortAlgorithms
                 string?[] tempElements = new string?[elements.Length];
                 // Копируем массив элементов.
                 Array.Copy(elements, tempElements, elements.Length);
-                // Пробегаемся от нуля до числа элементов.
-                for (int i = 0; i < tempElements.Length; i++)
+                // Пробегаемся от нуля до числа потоков.
+                for (int i = 0; i < threadsNum; i++)
                     // Проверяем, является ли серия последней для временного файла и достиг ли счётчик для этого файла числа элементов текущей серии.
                     if (indices[i] >= series.Count || counters[i] == series[indices[i]])
                         // Если счётчик для текущего файла достиг числа итераций, не учитываем элемент текущего файла.
@@ -162,11 +157,11 @@ namespace Algorithms.ExternalSortAlgorithms
 
                 // Устанавливаем ложное значение в качестве флага перехода к следующей итерации.
                 bool isNextIter = false;
-                // Пробегаемся по массиву счётчиков.
-                for (int i = 0; i < counters.Length; i++)
+                // Пробегаемся от нуля до числа потоков.
+                for (int i = 0; i < threadsNum; i++)
                 {
-                    // Проверяем, дошёл ли счётчик до конца серии текущего файла.
-                    if (counters[i] != series[indices[i]])
+                    // Проверяем, является ли серия последней для временного файла дошёл ли счётчик до конца серии текущего файла.
+                    if (indices[i] < series.Count && counters[i] != series[indices[i]])
                     {
                         // Если счётчик не дошёл до конца серии текущего файла:
                         // Устанавливаем истинное значение для флага.
@@ -179,13 +174,14 @@ namespace Algorithms.ExternalSortAlgorithms
                 if (isNextIter) continue;
                     
                 // Если флаг имеет ложное значение:
-                // Пробегаемся по массиву счётчиков.
-                for (int i = 0; i < counters.Length; i++)
+                // Пробегаемся от нуля до числа потоков.
+                for (int i = 0; i < threadsNum; i++)
+                {
                     // Обнуляем счётчик соответствующего временного файла.
                     counters[i] = 0;
-                for (int i = 0; i < indices.Length; i++)
                     // Инкрементируем индекс серии соответствующего временного файла.
                     indices[i] += threadsNum;
+                }
             }
 
             // Пробегаемся по считывателям из временных файлов.

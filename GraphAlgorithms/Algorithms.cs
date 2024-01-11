@@ -10,27 +10,40 @@
         /// </summary>
         /// <param name="lines">Список линий (рёбер) графа.</param>
         /// <returns>Список с минимальным остовным деревом.</returns>
-        static List<Line> Kruskal(List<Line> lines)
+        public static List<Line> Kruskal(List<Line> lines)
         {
             // Сортируем линии по весу.
             lines.Sort((x, y) => x.Weight.CompareTo(y.Weight));
             // Устанавливаем пустой список в качестве списка с будущим минимальным остовным деревом.
             List<Line> minimumSpanningTree = [];
+            // Устанавливаем ноль в качестве счётчика точек.
+            int count = 0;
+            // Пробегаемся по массиву линий.
+            foreach (Line line in lines)
+            {
+                // Сравниваем имя начальной точки текущей линии (ребра) с нулём.
+                if (line.Points.Item1.Name == 0)
+                    // Если имя начальной точки текущей линии (ребра) равно нулю, устанавливаем для неё новое имя и инкрементируем счётчик.
+                    line.Points.Item1.Name = 1 + count++;
+                // Сравниваем имя конечной точки текущей линии (ребра) с нулём.
+                if (line.Points.Item2.Name == 0)
+                    // Если имя конечной точки текущей линии (ребра) равно нулю, устанавливаем для неё новое имя и инкрементируем счётчик.
+                    line.Points.Item2.Name = 1 + count++;
+            }
             // Устанавливаем массив со значениями по умолчанию в качестве массива, который будет хранить корневые вершины для каждой вершины графа.
-            int[] parent = new int[lines.Count + 1];
-
-            // Пробегаемся по массиву.
-            for (int i = 0; i < parent.Length; i++)
+            int[] parent = new int[count];
+            // Пробегаемся по массиву от единицы до числа точек включительно.
+            for (int i = 1; i <= count; i++)
                 // Устанавливаем вершину графа свою корневую вершину.
-                parent[i] = i;
+                parent[i - 1] = i;
 
             // Пробегаемся по каждой линии (ребру) в отсортированном порядке.
-            foreach (var line in lines)
+            foreach (Line line in lines)
             {
                 // Находим корневую вершину для начальной точки линии (ребра).
-                int rootStart = FindParent(line.Points.Item1.Name, parent);
+                int rootStart = FindRoot(line.Points.Item1.Name, parent);
                 // Находим корневую вершину для конечной точки линии (ребра).
-                int rootEnd = FindParent(line.Points.Item2.Name, parent);
+                int rootEnd = FindRoot(line.Points.Item2.Name, parent);
 
                 // Сравниваем корневую вершину для начальной точки и для конечной точки.
                 if (rootStart != rootEnd)
@@ -39,7 +52,7 @@
                     // Добавляем текущую линию (ребро) в список с будущим минимальным остовным деревом.
                     minimumSpanningTree.Add(line);
                     // Меняем корневую вершину для начальной точки на корневую вершину для конечной.
-                    parent[rootStart] = rootEnd;
+                    parent[rootStart - 1] = rootEnd;
                 }
             }
 
@@ -53,14 +66,14 @@
         /// <param name="vertex">Имя точки (вершины).</param>
         /// <param name="parent">Массив корневых вершин точек (вершин).</param>
         /// <returns>Имя корневой точки (вершины) указанной точки (вершины).</returns>
-        static int FindParent(int vertex, int[] parent)
+        static int FindRoot(int vertex, int[] parent)
         {
             // Сравниваем корневую вершину точки с самой точкой.
-            if (parent[vertex] != vertex)
+            if (parent[vertex - 1] != vertex)
                 // Если точка не является корневой, ищем корневую вершину её корневой точки.
-                parent[vertex] = FindParent(parent[vertex], parent);
+                vertex = FindRoot(parent[vertex - 1], parent);
             // Если точка является корневой, то возвращаем корневую вершину для указанной точки.
-            return parent[vertex];
+            return vertex;
         }
 
         /// <summary>
@@ -108,6 +121,21 @@
         }
 
         /// <summary>
+        /// Метод, реализующий начало рекурсивного обхода графа в глубину.
+        /// </summary>
+        /// <param name="curPoint">Текущая точка.</param>
+        /// <param name="points">Список точек графа.</param>
+        public static void StartRecDFS(Point curPoint, List<Point> points)
+        {
+            // Пробегаемся по списку точек.
+            foreach (Point point in points)
+                // Объявляем их непосещёнными.
+                point.IsVisited = false;
+            // Запускаем метод, реализующий рекурсивный обход графа в глубину.
+            RecursiveDFS(curPoint);
+        }
+
+        /// <summary>
         /// Метод, реализующий рекурсивный обход графа в глубину.
         /// </summary>
         /// <param name="curPoint">Текущая точка.</param>
@@ -144,27 +172,29 @@
         /// Метод, реализующий обход графа в глубину через стек.
         /// </summary>
         /// <param name="startPoint">Начальная точка.</param>
-        public static void StackDFS(Point startPoint)
+        /// <param name="points">Список точек графа.</param>
+        public static void StackDFS(Point startPoint, List<Point> points)
         {
             // Если начальная точка не задана, прекращаем обход графа.
             if (startPoint == null) return;
+            // Пробегаемся по списку точек.
+            foreach (Point point in points)
+                // Объявляем их непосещёнными.
+                point.IsVisited = false;
             // Устанавливаем пустой стек в качестве стека для записи точек обхода графа.
-            DinamicStructures.Stack<Point> points = new();
+            DinamicStructures.Stack<Point> stack = new();
             // Добавляем начальную точку в стек.
-            points.Push(startPoint);
+            stack.Push(startPoint);
+            // Помечаем начальную точку как посещенную.
+            startPoint.IsVisited = true;
 
             // Пока элементы в стеке не закончились, продолжаем обход графа.
-            while (points.elements.Head != null)
+            while (stack.elements.Head != null)
             {
                 // Устанавливаем извлечённый с вершины стека элемент в качестве текущей точки.
-                Point curPoint = points.Pop();
-                // Если текущая точка была посещена, переходим к следующей итерации.
-                if (curPoint.IsVisited) continue;
-                // Если текущая точка не была посещена:
+                Point curPoint = stack.Pop();
                 // Выводим текущую точку.
                 Console.WriteLine(curPoint.Name);
-                // Помечаем текущую точку как посещенную.
-                curPoint.IsVisited = true;
 
                 // Пробегаемся по линиям, связанным с текущей точкой.
                 foreach (Line line in curPoint.LinkedLines)
@@ -181,8 +211,13 @@
 
                     // Проверяем, посещена ли следующая после текущей точка.
                     if (!nextPoint.IsVisited)
+                    {
+                        // Если следующая после текущей точка не посещена:
                         // Добавляем следующую после текущей точку в стек.
-                        points.Push(nextPoint);
+                        stack.Push(nextPoint);
+                        // Помечаем следующую после текущей точку как посещённую.
+                        nextPoint.IsVisited = true;
+                    }
                 }
             }
         }
@@ -191,27 +226,29 @@
         /// Метод, реализующий обход графа в ширину.
         /// </summary>
         /// <param name="startPoint">Начальная точка.</param>
-        public static void BFS(Point startPoint)
+        /// <param name="points">Список точек графа.</param>
+        public static void BFS(Point startPoint, List<Point> points)
         {
             // Если начальная точка не задана, прекращаем обход графа.
             if (startPoint == null) return;
+            // Пробегаемся по списку точек.
+            foreach (Point point in points)
+                // Объявляем их непосещёнными.
+                point.IsVisited = false;
             // Устанавливаем пустую очередь в качестве очереди для записи точек обхода графа.
             DinamicStructures.Queue<Point> queue = new();
             // Добавляем начальную точку в очередь.
             queue.Enqueue(startPoint);
+            // Помечаем начальную точку как посещенную.
+            startPoint.IsVisited = true;
 
             // Пока элементы в очереди не закончились, продолжаем обход графа.
             while (queue.elements.Tail != null)
             {
                 // Устанавливаем извлечённый с начала очереди элемент в качестве текущей точки.
                 Point curPoint = queue.Dequeue();
-                // Если текущая точка была посещена, переходим к следующей итерации.
-                if (curPoint.IsVisited) continue;
-                // Если текущая точка не была посещена:
                 // Выводим текущую точку.
                 Console.WriteLine(curPoint.Name);
-                // Помечаем текущую точку как посещенную.
-                curPoint.IsVisited = true;
 
                 // Пробегаемся по линиям, связанным с текущей точкой.
                 foreach (Line line in curPoint.LinkedLines)
@@ -228,8 +265,13 @@
 
                     // Проверяем, посещена ли следующая после текущей точка.
                     if (!nextPoint.IsVisited)
+                    {
+                        // Если следующая после текущей точка не посещена:
                         // Добавляем следующую после текущей точку в очередь.
                         queue.Enqueue(nextPoint);
+                        // Помечаем следующую после текущей точку как посещённую.
+                        nextPoint.IsVisited = true;
+                    }
                 }
             }
         }
@@ -242,6 +284,10 @@
         /// <returns>Словарь, в котором каждой точке соответствует минимальное расстояние до неё от начальной точкой.</returns>
         public static Dictionary<Point, int> Dijkstra(List<Point> points, Point startPoint)
         {
+            // Пробегаемся по списку точек.
+            foreach (Point point in points)
+                // Объявляем их непосещёнными.
+                point.IsVisited = false;
             // Устанавливаем пустой словарь в качестве словаря точек и расстояний от начальной точки до них.
             Dictionary<Point, int> distances = [];
             // Пробегаемся по точкам графа.
@@ -301,7 +347,6 @@
                         distances[nextPoint] = distanceToNext;
                 }
             }
-
             // Возвращаем словарь, в котором каждой точке соответствует минимальное расстояние до неё от начальной точкой.
             return distances;
         }

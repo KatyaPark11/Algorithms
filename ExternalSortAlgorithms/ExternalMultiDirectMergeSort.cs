@@ -1,4 +1,6 @@
-﻿namespace Algorithms.ExternalSortAlgorithms
+﻿using System;
+
+namespace Algorithms.ExternalSortAlgorithms
 {
     /// <summary>
     /// Класс, реализующий внешнюю сортировку многопутевым прямым слиянием.
@@ -34,7 +36,9 @@
                 // Если остался один сегмент, прекращаем сортировку.
                 if (segments == 1) break;
                 // Сливаем временные файлы в файл с будущим отсортированным массивом.
-                MergeFiles(ref step, threadsNum);
+                MergeFiles(step, threadsNum);
+                // Увеличиваем шаг в n раз, где n - число потоков.
+                step *= threadsNum;
             }
 
             // Пробегаемся от нуля до числа путей.
@@ -57,7 +61,7 @@
             using StreamReader fileA = new("fileA.txt");
             // Устанавливаем заданное число ссылок в качестве записывателей во временные файлы.
             StreamWriter[] writers = new StreamWriter[threadsNum];
-            // Пробегаемся от нуля до числа путей.
+            // Пробегаемся от нуля до числа потоков.
             for (int i = 0; i < threadsNum; i++)
                 // Устанавливаем путь к файлу для текущего записывателя.
                 writers[i] = new($"file{(char)('B' + i)}.txt");
@@ -100,7 +104,7 @@
         /// </summary>
         /// <param name="step">Шаг.</param>
         /// <param name="threadsNum">Число потоков.</param>
-        private static void MergeFiles(ref int step, int threadsNum)
+        private static void MergeFiles(int step, int threadsNum)
         {
             // Устанавливаем записыватель в файл с будущим отсортированным массивом.
             using StreamWriter fileA = new("fileA.txt");
@@ -111,13 +115,13 @@
                 // Устанавливаем путь к файлу для текущего считывателя.
                 readers[i] = new($"file{(char)('B' + i)}.txt");
             // Устанавливаем заданное число ссылок в качестве элементов из временных файлов.
-            string?[] elements = new string?[readers.Length];
-            // Пробегаемся от нуля до числа считывателей.
-            for (int i = 0; i < readers.Length; i++)
+            string?[] elements = new string?[threadsNum];
+            // Пробегаемся от нуля до числа потоков.
+            for (int i = 0; i < threadsNum; i++)
                 // Считываем первую строку из каждого временного файла.
                 elements[i] = readers[i].ReadLine();
             // Устанавливаем нули (по умолчанию) в качестве счётчиков для файлов для отслеживания перехода к следующему файлу.
-            int[] counters = new int[readers.Length];
+            int[] counters = new int[threadsNum];
 
             // Пока строки во временных файлах не закончились, продолжаем сортировку.
             while (elements.Any(e => e != null))
@@ -141,19 +145,14 @@
                 // Инкрементируем счётчик для текущего файла.
                 counters[minIndex]++;
 
-                // Фиксируем значение шага.
-                int fixedStep = step;
                 // Если счётчики не дошли до конца шага хотя бы для одного файла, то переходим к следующей итерации.
-                if (counters.Any(c => c != fixedStep)) continue;
+                if (counters.Any(c => c != step)) continue;
                 // Если счётчики дошли до конца для всех временных файлов:
                 // Пробегаемся от нуля до числа счётчиков.
                 for (int i = 0; i < counters.Length; i++)
                     // Обнуляем текущий счётчик.
                     counters[i] = 0;
             }
-
-            // Увеличиваем шаг в n раз, где n - число считывателей.
-            step *= readers.Length;
 
             // Пробегаемся по считывателям из временных файлов.
             foreach (var reader in readers)
@@ -175,21 +174,14 @@
             // Пробегаемся по массиву n раз, где n - длина массива.
             for (int i = 0; i < elements.Length; i++)
             {
-                // Проверяем, есть ли элемент по данному индексу.
-                if (elements[i] != null)
+                // Проверяем, есть ли элемент по данному индексу и сравниваем текущий элемент с минимальным.
+                if (elements[i] != null && int.Parse(elements[i]) < minValue)
                 {
-                    // Если элемент есть:
-                    // Конвертируем значение из строки в целое число.
-                    int num = int.Parse(elements[i]);
-                    // Сравниваем текущий элемент с минимальным.
-                    if (num < minValue)
-                    {
-                        // Если текущий элемент меньше минимального:
-                        // Меняем минимальный элемент на текущий.
-                        minValue = num;
-                        // Меняем индекс минимального элемента на индекс текущего.
-                        minIndex = i;
-                    }
+                    // Если элемент и он меньше текущего минимального:
+                    // Меняем на него текущий минимальный элемент.
+                    minValue = int.Parse(elements[i]);
+                    // Меняем индекс минимального элемента на его индекс.
+                    minIndex = i;
                 }
             }
 
